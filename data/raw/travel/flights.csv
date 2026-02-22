@@ -1,0 +1,9 @@
+flight_date,trip_id,origin_iata,destination_iata,airline,flight_number,miles,reservation
+2025-12-07,2025-001,SFO,MIA,American Airlines,AA 1746,2581,HVYEXC
+2025-12-08,2025-001,MIA,GRU,American Airlines,AA 929,4085,HVYEXC
+2025-12-12,2025-001,GRU,MIA,American Airlines,AA 958,4085,HVYEXC
+2025-12-13,2025-001,MIA,SFO,American Airlines,AA 1557,2581,HVYEXC
+2026-01-31,2026-002,SFO,DFW,American Airlines,AA 1996,1462,NXHKFS
+2026-01-31,2026-002,DFW,GRU,American Airlines,AA 963,5123,NXHKFS
+2026-02-06,2026-002,GRU,MIA,American Airlines,AA 958,4085,NXHKFS
+2026-02-07,2026-002,MIA,SFO,American Airlines,AA 1557,2581,NXHKFS

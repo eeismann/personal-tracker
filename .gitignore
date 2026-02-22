@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+
+# Data - cached/derived binary
+data/raw_cache/
+data/derived/tracker.db
+
+# Next.js dashboard
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
