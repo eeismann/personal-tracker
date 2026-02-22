@@ -2,6 +2,15 @@
 
 import { DayData } from "../types";
 
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-4 rounded-lg border border-[var(--border)]">
+      <p className="text-sm text-[var(--subtle)] mb-1">{label}</p>
+      <p className="text-xl font-medium">{value}</p>
+    </div>
+  );
+}
+
 export function DayDetail({ data, date }: { data: DayData | null | undefined; date: Date }) {
   if (!data) {
     return (
@@ -40,60 +49,31 @@ export function DayDetail({ data, date }: { data: DayData | null | undefined; da
       </div>
 
       {/* Oura Scores */}
-      {(data.sleepScore || data.readinessScore || data.activityScore) && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg border border-[var(--border)]">
-            <p className="text-sm text-[var(--subtle)] mb-1">Sleep Score</p>
-            <p className="text-xl font-medium">{data.sleepScore ?? "—"}</p>
-          </div>
-          <div className="p-4 rounded-lg border border-[var(--border)]">
-            <p className="text-sm text-[var(--subtle)] mb-1">Readiness</p>
-            <p className="text-xl font-medium">{data.readinessScore ?? "—"}</p>
-          </div>
-          <div className="p-4 rounded-lg border border-[var(--border)]">
-            <p className="text-sm text-[var(--subtle)] mb-1">Activity</p>
-            <p className="text-xl font-medium">{data.activityScore ?? "—"}</p>
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-3 gap-4">
+        <Metric label="Sleep Score" value={data.sleepScore != null ? String(data.sleepScore) : "\u2014"} />
+        <Metric label="Readiness" value={data.readinessScore != null ? String(data.readinessScore) : "\u2014"} />
+        <Metric label="Activity" value={data.activityScore != null ? String(data.activityScore) : "\u2014"} />
+      </div>
 
       {/* Health metrics */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Sleep</p>
-          <p className="text-xl font-medium">{data.sleep ? `${data.sleep}h` : "—"}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Resting HR</p>
-          <p className="text-xl font-medium">{data.restingHR ? `${data.restingHR} bpm` : "—"}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Steps</p>
-          <p className="text-xl font-medium">{data.steps ? data.steps.toLocaleString() : "—"}</p>
-        </div>
+        <Metric label="Sleep" value={data.sleep != null ? `${data.sleep}h` : "\u2014"} />
+        <Metric label="Resting HR" value={data.restingHR != null ? `${data.restingHR} bpm` : "\u2014"} />
+        <Metric label="Steps" value={data.steps != null ? data.steps.toLocaleString() : "\u2014"} />
       </div>
 
-      {/* Time tracking */}
+      {/* Time & wellness */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Work</p>
-          <p className="text-xl font-medium">{data.timeWorking ? `${Math.round(data.timeWorking / 60)}h` : "—"}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Mood</p>
-          <p className="text-xl font-medium">{data.mood ? `${data.mood}/5` : "—"}</p>
-        </div>
-        <div className="p-4 rounded-lg border border-[var(--border)]">
-          <p className="text-sm text-[var(--subtle)] mb-1">Energy</p>
-          <p className="text-xl font-medium">{data.energy ? `${data.energy}/5` : "—"}</p>
-        </div>
+        <Metric label="Work" value={data.timeWorking ? `${Math.round(data.timeWorking / 60)}h` : "\u2014"} />
+        <Metric label="Mood" value={data.mood != null ? `${data.mood}/5` : "\u2014"} />
+        <Metric label="Energy" value={data.energy != null ? `${data.energy}/5` : "\u2014"} />
       </div>
 
       {/* Weather */}
-      {data.weatherHighF && (
+      {data.weatherHighF != null && (
         <div className="p-4 rounded-lg border border-[var(--border)]">
           <p className="text-sm text-[var(--subtle)] mb-1">Weather</p>
-          <p className="font-medium">{data.weatherHighF}°F — {data.weatherCondition || "Unknown"}</p>
+          <p className="font-medium">{data.weatherHighF}&deg;F &mdash; {data.weatherCondition || "Unknown"}</p>
         </div>
       )}
 
