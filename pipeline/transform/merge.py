@@ -30,6 +30,8 @@ def build_daily_summary() -> pd.DataFrame:
     readiness = _load_source("oura", "readiness_*.csv")
     activity = _load_source("oura", "activity_*.csv")
     workouts = _load_source("apple_health", "workouts_*.csv", dedup_by_date=False)
+    ah_steps = _load_source("apple_health", "steps_*.csv")
+    ah_sleep = _load_source("apple_health", "sleep_*.csv")
     sauna = _load_source("sauna", "sessions.csv")
     work = _load_source("work", "hours_*.csv")
     weather = _load_source("weather", "daily_*.csv")
@@ -37,7 +39,7 @@ def build_daily_summary() -> pd.DataFrame:
 
     # Collect all dates
     all_dates = set()
-    for df in [sleep, readiness, activity, workouts, sauna, work, weather, mood]:
+    for df in [sleep, readiness, activity, workouts, ah_steps, ah_sleep, sauna, work, weather, mood]:
         if not df.empty and "date" in df.columns:
             all_dates.update(df["date"].unique())
 
@@ -84,6 +86,22 @@ def build_daily_summary() -> pd.DataFrame:
             workout_duration_min=("duration_min", "sum"),
         ).reset_index()
         summary = summary.merge(workout_days, on="date", how="left")
+
+    # Apple Health steps (fallback when Oura activity is missing)
+    if not ah_steps.empty:
+        ah_steps_cols = ah_steps[["date", "steps"]].copy()
+        ah_steps_cols = ah_steps_cols.rename(columns={"steps": "ah_steps"})
+        summary = summary.merge(ah_steps_cols, on="date", how="left")
+
+    # Apple Health sleep (fallback when Oura sleep is missing)
+    if not ah_sleep.empty:
+        ah_sleep_cols = ah_sleep[["date", "asleep_hr", "deep_hr", "rem_hr"]].copy()
+        ah_sleep_cols = ah_sleep_cols.rename(columns={
+            "asleep_hr": "ah_sleep_hr",
+            "deep_hr": "ah_deep_hr",
+            "rem_hr": "ah_rem_hr",
+        })
+        summary = summary.merge(ah_sleep_cols, on="date", how="left")
 
     # Sauna flag
     if not sauna.empty:
@@ -178,6 +196,31 @@ def build_tracker_json(daily: pd.DataFrame) -> dict:
         sleep_hours = None
         if pd.notna(row.get("sleep_total_min")):
             sleep_hours = round(row["sleep_total_min"] / 60, 1)
+        elif pd.notna(row.get("ah_sleep_hr")):
+            sleep_hours = round(row["ah_sleep_hr"], 1)
+
+        # Prefer Oura steps, fall back to Apple Health
+        steps = None
+        if pd.notna(row.get("steps")):
+            steps = int(row["steps"])
+        elif pd.notna(row.get("ah_steps")):
+            steps = int(row["ah_steps"])
+
+        # Prefer Oura deep/rem, fall back to Apple Health (convert hours to minutes)
+        deep_min = None
+        if pd.notna(row.get("sleep_deep_min")):
+            deep_min = int(row["sleep_deep_min"])
+        elif pd.notna(row.get("ah_deep_hr")):
+            deep_min = int(row["ah_deep_hr"] * 60)
+
+        rem_min = None
+        if pd.notna(row.get("sleep_rem_min")):
+            rem_min = int(row["sleep_rem_min"])
+        elif pd.notna(row.get("ah_rem_hr")):
+            rem_min = int(row["ah_rem_hr"] * 60)
+
+        # Resting HR: Oura readiness, fall back to Apple Health export restingHeartRate if present
+        resting_hr = int(row["resting_hr"]) if pd.notna(row.get("resting_hr")) else None
 
         days[date_str] = {
             "date": date_str,
@@ -187,7 +230,7 @@ def build_tracker_json(daily: pd.DataFrame) -> dict:
                 "meditation": False,  # TODO: detect from Apple Health
             },
             "sleep": sleep_hours,
-            "restingHR": int(row["resting_hr"]) if pd.notna(row.get("resting_hr")) else None,
+            "restingHR": resting_hr,
             "stress": stress,
             "location": None,
             "notes": None,
@@ -198,10 +241,10 @@ def build_tracker_json(daily: pd.DataFrame) -> dict:
             "sleepScore": int(row["sleep_score"]) if pd.notna(row.get("sleep_score")) else None,
             "readinessScore": int(row["readiness_score"]) if pd.notna(row.get("readiness_score")) else None,
             "activityScore": int(row["activity_score"]) if pd.notna(row.get("activity_score")) else None,
-            "steps": int(row["steps"]) if pd.notna(row.get("steps")) else None,
+            "steps": steps,
             "activeCalories": int(row["active_calories"]) if pd.notna(row.get("active_calories")) else None,
-            "sleepDeepMin": int(row["sleep_deep_min"]) if pd.notna(row.get("sleep_deep_min")) else None,
-            "sleepRemMin": int(row["sleep_rem_min"]) if pd.notna(row.get("sleep_rem_min")) else None,
+            "sleepDeepMin": deep_min,
+            "sleepRemMin": rem_min,
             "weatherHighF": round(row["weather_high_f"], 0) if pd.notna(row.get("weather_high_f")) else None,
             "weatherCondition": row.get("weather_condition") if pd.notna(row.get("weather_condition")) else None,
             "mood": int(row["mood"]) if pd.notna(row.get("mood")) else None,
