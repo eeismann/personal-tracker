@@ -1,4 +1,4 @@
-.PHONY: setup ingest ingest-oura ingest-apple-health rebuild dashboard all clean poll-telegram sync
+.PHONY: setup ingest ingest-oura ingest-oura-auto ingest-apple-health rebuild dashboard all clean poll-telegram sync
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python
@@ -25,6 +25,9 @@ dashboard:
 	cd dashboard && npm run dev
 
 all: ingest rebuild sync
+
+ingest-oura-auto:
+	$(PYTHON) automation/oura_ingest.py
 
 poll-telegram:
 	$(PYTHON) automation/telegram_poll.py

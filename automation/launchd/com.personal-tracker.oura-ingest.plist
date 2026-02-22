@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Oura Ring Ingest LaunchAgent for Personal Tracker
+
+  Fetches Oura data every 4 hours, rebuilds derived data, and syncs
+  tracker.json to the personal website.
+
+  Install:
+    cp automation/launchd/com.personal-tracker.oura-ingest.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.personal-tracker.oura-ingest.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.personal-tracker.oura-ingest.plist
+    rm ~/Library/LaunchAgents/com.personal-tracker.oura-ingest.plist
+
+  Check status:
+    launchctl list | grep personal-tracker
+
+  View logs:
+    tail -f ~/Documents/personal-tracker/data/logs/oura_ingest.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.personal-tracker.oura-ingest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ethan.eismann/Documents/personal-tracker/.venv/bin/python</string>
+        <string>/Users/ethan.eismann/Documents/personal-tracker/automation/oura_ingest.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/ethan.eismann/Documents/personal-tracker</string>
+
+    <key>StartInterval</key>
+    <integer>14400</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/ethan.eismann/Documents/personal-tracker/data/logs/oura_ingest.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/ethan.eismann/Documents/personal-tracker/data/logs/oura_ingest.log</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

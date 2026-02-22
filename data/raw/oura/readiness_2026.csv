@@ -49,3 +49,4 @@ date,score,temperature_deviation,hrv_balance,recovery_index,resting_heart_rate
 2026-02-18,91,-0.11,89,78,100
 2026-02-19,81,-0.1,88,100,64
 2026-02-20,81,-0.02,89,43,75
+2026-02-21,81,0.05,86,54,56
