@@ -15,9 +15,9 @@ from pipeline.config import (
 from pipeline.db import load_csvs
 
 
-def _load_source(directory: str, pattern: str) -> pd.DataFrame:
+def _load_source(directory: str, pattern: str, dedup_by_date: bool = True) -> pd.DataFrame:
     """Load a source and ensure date column is string YYYY-MM-DD."""
-    df = load_csvs(directory, pattern)
+    df = load_csvs(directory, pattern, dedup_by_date=dedup_by_date)
     if not df.empty and "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
     return df
@@ -29,7 +29,7 @@ def build_daily_summary() -> pd.DataFrame:
     sleep = _load_source("oura", "sleep_*.csv")
     readiness = _load_source("oura", "readiness_*.csv")
     activity = _load_source("oura", "activity_*.csv")
-    workouts = _load_source("apple_health", "workouts_*.csv")
+    workouts = _load_source("apple_health", "workouts_*.csv", dedup_by_date=False)
     sauna = _load_source("sauna", "sessions.csv")
     work = _load_source("work", "hours_*.csv")
     weather = _load_source("weather", "daily_*.csv")

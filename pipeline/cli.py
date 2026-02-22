@@ -16,7 +16,7 @@ def cli():
 
 @cli.command()
 @click.option("--all", "all_sources", is_flag=True, help="Run all ingestors")
-@click.option("--source", type=click.Choice(["oura", "calendar", "travel"]), help="Run a specific ingestor")
+@click.option("--source", type=click.Choice(["oura", "apple_health", "calendar", "travel"]), help="Run a specific ingestor")
 @click.option("--days", type=int, default=None, help="Override: fetch last N days")
 def ingest(all_sources: bool, source: str | None, days: int | None):
     """Pull data from external sources."""
@@ -27,7 +27,7 @@ def ingest(all_sources: bool, source: str | None, days: int | None):
 
     sources_to_run = []
     if all_sources:
-        sources_to_run = ["oura", "calendar", "travel"]
+        sources_to_run = ["oura", "apple_health", "calendar", "travel"]
     elif source:
         sources_to_run = [source]
 
@@ -40,6 +40,9 @@ def ingest(all_sources: bool, source: str | None, days: int | None):
             if src == "oura":
                 from pipeline.ingest.oura import OuraIngestor
                 OuraIngestor().run(start_date=start, end_date=end)
+            elif src == "apple_health":
+                from pipeline.ingest.apple_health import AppleHealthIngestor
+                AppleHealthIngestor().run(start_date=start, end_date=end)
             elif src == "calendar":
                 from pipeline.ingest.google_calendar import GoogleCalendarIngestor
                 GoogleCalendarIngestor().run(start_date=start, end_date=end)
@@ -57,6 +60,14 @@ def ingest(all_sources: bool, source: str | None, days: int | None):
             click.echo(f"Error: {e}")
         except Exception as e:
             click.echo(f"[{src}] Failed: {e}")
+
+
+@cli.command("poll-telegram")
+def poll_telegram():
+    """Poll Telegram bot for new Apple Health JSON exports."""
+    from automation.telegram_poll import poll_once
+
+    poll_once()
 
 
 @cli.command()

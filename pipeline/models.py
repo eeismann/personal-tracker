@@ -50,6 +50,21 @@ class AppleHealthWorkout(BaseModel):
     max_hr: Optional[int] = None
 
 
+class AppleHealthSteps(BaseModel):
+    date: date
+    steps: Optional[int] = None
+
+
+class AppleHealthSleep(BaseModel):
+    date: date
+    asleep_hr: Optional[float] = None
+    in_bed_hr: Optional[float] = None
+    deep_hr: Optional[float] = None
+    rem_hr: Optional[float] = None
+    core_hr: Optional[float] = None
+    source: Optional[str] = None
+
+
 class SaunaSession(BaseModel):
     date: date
     start_time: Optional[datetime] = None

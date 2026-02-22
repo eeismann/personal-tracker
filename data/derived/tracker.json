@@ -2271,7 +2271,7 @@
     "2026-02-15": {
       "date": "2026-02-15",
       "habits": {
-        "workout": null,
+        "workout": "weights",
         "sauna": false,
         "meditation": false
       },
@@ -2298,7 +2298,7 @@
     "2026-02-16": {
       "date": "2026-02-16",
       "habits": {
-        "workout": null,
+        "workout": "cardio",
         "sauna": false,
         "meditation": false
       },
@@ -2352,7 +2352,7 @@
     "2026-02-18": {
       "date": "2026-02-18",
       "habits": {
-        "workout": null,
+        "workout": "cardio",
         "sauna": false,
         "meditation": false
       },
@@ -2433,7 +2433,7 @@
     "2026-02-21": {
       "date": "2026-02-21",
       "habits": {
-        "workout": null,
+        "workout": "cardio",
         "sauna": true,
         "meditation": false
       },
