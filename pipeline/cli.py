@@ -62,24 +62,12 @@ def ingest(all_sources: bool, source: str | None, days: int | None):
             click.echo(f"[{src}] Failed: {e}")
 
 
-@cli.command("pull-health")
-def pull_health():
-    """Pull latest health exports from GitHub and ingest."""
-    import subprocess
+@cli.command("poll-telegram")
+def poll_telegram():
+    """Poll Telegram bot for new Apple Health JSON exports."""
+    from automation.telegram_poll import poll_once
 
-    click.echo("Pulling latest from GitHub...")
-    subprocess.run(["git", "pull", "--ff-only"], check=True)
-
-    click.echo("Ingesting Apple Health data...")
-    from pipeline.ingest.apple_health import AppleHealthIngestor
-    AppleHealthIngestor().run()
-
-    click.echo("Rebuilding database...")
-    from pipeline.db import rebuild_db
-    from pipeline.transform.merge import run_merge
-    rebuild_db()
-    run_merge()
-    click.echo("Done.")
+    poll_once()
 
 
 @cli.command()

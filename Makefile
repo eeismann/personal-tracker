@@ -1,4 +1,4 @@
-.PHONY: setup ingest ingest-oura ingest-apple-health rebuild dashboard all clean pull-health
+.PHONY: setup ingest ingest-oura ingest-apple-health rebuild dashboard all clean poll-telegram
 
 VENV := .venv
 PYTHON := $(VENV)/bin/python
@@ -26,10 +26,8 @@ dashboard:
 
 all: ingest rebuild
 
-pull-health:
-	git pull --ff-only
-	$(PYTHON) -m pipeline.cli ingest --source apple_health
-	$(PYTHON) -m pipeline.cli rebuild
+poll-telegram:
+	$(PYTHON) automation/telegram_poll.py
 
 clean:
 	rm -f data/derived/tracker.db
