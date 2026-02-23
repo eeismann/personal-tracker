@@ -12,6 +12,7 @@ build/
 # Data - cached/derived binary
 data/raw_cache/
 data/derived/tracker.db
+data/derived/tokyo_votes.db
 
 # Next.js dashboard
 dashboard/node_modules/
