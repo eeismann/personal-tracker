@@ -1,18 +1,27 @@
 """Poll Telegram bot for Apple Health JSON exports and trigger ingest.
 
-Reads TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID from .env.
-Persists the last processed update_id to automation/telegram_offset.json.
+Reads TELEGRAM_BOT_TOKEN and chat/user allowlists from .env.
+Persists the last processed update_id to data/state/telegram_offset.json.
 
 Usage:
-    python automation/telegram_poll.py          # poll once
+    python automation/telegram_poll.py           # poll once
     python automation/telegram_poll.py --watch   # poll every 60s
+
+Multi-machine notes:
+- Keep machine-specific secrets in each machine's local `.env`.
+- You can allow one or many chats via TELEGRAM_CHAT_ID / TELEGRAM_CHAT_IDS.
+- Optionally constrain sender identity via TELEGRAM_ALLOWED_USER_IDS / TELEGRAM_ALLOWED_USERNAMES.
 """
 
+from __future__ import annotations
+
 import json
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Iterable
 
 import httpx
 from dotenv import load_dotenv
@@ -21,15 +30,30 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Always load .env from project root (portable across cwd/launchd)
 load_dotenv(PROJECT_ROOT / ".env")
-
-import os
 
 from pipeline.config import RAW_DIR
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-OFFSET_FILE = Path(__file__).resolve().parent / "telegram_offset.json"
+
+# Single or comma-separated chat IDs
+_CHAT_IDS_RAW = ",".join(
+    [
+        os.environ.get("TELEGRAM_CHAT_ID", ""),
+        os.environ.get("TELEGRAM_CHAT_IDS", ""),
+    ]
+)
+ALLOWED_CHAT_IDS = {s.strip() for s in _CHAT_IDS_RAW.split(",") if s.strip()}
+
+# Optional sender allowlists (recommended for group chats)
+_ALLOWED_USER_IDS_RAW = os.environ.get("TELEGRAM_ALLOWED_USER_IDS", "")
+ALLOWED_USER_IDS = {s.strip() for s in _ALLOWED_USER_IDS_RAW.split(",") if s.strip()}
+
+_ALLOWED_USERNAMES_RAW = os.environ.get("TELEGRAM_ALLOWED_USERNAMES", "")
+ALLOWED_USERNAMES = {s.strip().lstrip("@").lower() for s in _ALLOWED_USERNAMES_RAW.split(",") if s.strip()}
+
+OFFSET_FILE = PROJECT_ROOT / "data" / "state" / "telegram_offset.json"
 DOWNLOAD_DIR = RAW_DIR / "apple_health"
 
 
@@ -37,12 +61,13 @@ def _load_offset() -> int:
     """Load the last processed update_id."""
     if OFFSET_FILE.exists():
         data = json.loads(OFFSET_FILE.read_text())
-        return data.get("offset", 0)
+        return int(data.get("offset", 0))
     return 0
 
 
 def _save_offset(offset: int) -> None:
     """Persist the next update_id to fetch."""
+    OFFSET_FILE.parent.mkdir(parents=True, exist_ok=True)
     OFFSET_FILE.write_text(json.dumps({"offset": offset}))
 
 
@@ -80,13 +105,46 @@ def _download_file(token: str, file_id: str, dest: Path) -> Path:
     return dest
 
 
+def _is_allowed_sender(msg: dict) -> bool:
+    """Validate sender if allowlists are provided."""
+    if not ALLOWED_USER_IDS and not ALLOWED_USERNAMES:
+        return True
+
+    sender = msg.get("from", {})
+    sender_id = str(sender.get("id", ""))
+    sender_username = str(sender.get("username", "")).lower()
+
+    if ALLOWED_USER_IDS and sender_id in ALLOWED_USER_IDS:
+        return True
+    if ALLOWED_USERNAMES and sender_username in ALLOWED_USERNAMES:
+        return True
+    return False
+
+
+def _is_allowed_chat(chat_id: str) -> bool:
+    """Validate chat id if allowlist is configured."""
+    if not ALLOWED_CHAT_IDS:
+        return True
+    return chat_id in ALLOWED_CHAT_IDS
+
+
+def _safe_filename(name: str | None) -> str:
+    if not name:
+        return "health-export.json"
+    base = Path(name).name
+    return base.replace(" ", "_")
+
+
+def _looks_like_health_json(data: dict) -> bool:
+    # Accept known HealthExport shape without being too strict.
+    keys = set(data.keys())
+    return bool({"workouts", "dailySummary", "samples", "exportDate"} & keys)
+
+
 def poll_once() -> int:
     """Poll for new messages, download JSON files, run ingest. Returns count of files processed."""
     if not TELEGRAM_BOT_TOKEN:
         print("Error: TELEGRAM_BOT_TOKEN not set in .env")
-        return 0
-    if not TELEGRAM_CHAT_ID:
-        print("Error: TELEGRAM_CHAT_ID not set in .env")
         return 0
 
     offset = _load_offset()
@@ -96,7 +154,7 @@ def poll_once() -> int:
         print("No new messages.")
         return 0
 
-    downloaded = []
+    downloaded: list[Path] = []
     max_update_id = offset
 
     for update in updates:
@@ -106,34 +164,45 @@ def poll_once() -> int:
         msg = update.get("message", {})
         chat_id = str(msg.get("chat", {}).get("id", ""))
 
-        # Only process messages from our configured chat
-        if chat_id != TELEGRAM_CHAT_ID:
+        if not _is_allowed_chat(chat_id):
+            continue
+        if not _is_allowed_sender(msg):
             continue
 
         doc = msg.get("document")
         text = msg.get("text", "")
 
         if doc:
-            # File attachment — download .json files
-            file_name = doc.get("file_name", "")
-            if not file_name.endswith(".json"):
+            # File attachment — download .json files (by extension or MIME)
+            file_name = _safe_filename(doc.get("file_name"))
+            mime = str(doc.get("mime_type", "")).lower()
+            if not (file_name.lower().endswith(".json") or mime == "application/json"):
                 continue
 
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+            dest = DOWNLOAD_DIR / f"{timestamp}-{file_name}"
             file_id = doc["file_id"]
-            dest = DOWNLOAD_DIR / file_name
             print(f"Downloading {file_name}...")
 
             try:
                 _download_file(TELEGRAM_BOT_TOKEN, file_id, dest)
+                # Validate JSON parseability
+                payload = json.loads(dest.read_text())
+                if not _looks_like_health_json(payload):
+                    print(f"  Skipping {dest.name}: does not look like health export payload")
+                    dest.unlink(missing_ok=True)
+                    continue
                 downloaded.append(dest)
                 print(f"  Saved to {dest}")
             except Exception as e:
                 print(f"  Failed to download {file_name}: {e}")
 
         elif text.lstrip().startswith("{"):
-            # Text message that looks like JSON (from old app version)
+            # Text message that looks like JSON
             try:
-                json.loads(text)  # validate it's real JSON
+                payload = json.loads(text)
+                if not _looks_like_health_json(payload):
+                    continue
             except json.JSONDecodeError:
                 continue
 
@@ -175,11 +244,12 @@ def poll_once() -> int:
     return len(downloaded)
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Poll Telegram for health exports")
     parser.add_argument("--watch", action="store_true", help="Poll continuously every 60 seconds")
+    parser.add_argument("--interval", type=int, default=60, help="Watch mode interval in seconds")
     args = parser.parse_args()
 
     if args.watch:
@@ -192,7 +262,7 @@ def main():
                 break
             except Exception as e:
                 print(f"Poll error: {e}")
-            time.sleep(60)
+            time.sleep(max(5, args.interval))
     else:
         poll_once()
 

@@ -45,6 +45,25 @@ make dashboard      # Start Next.js dev server
 | `make dashboard` | Start dashboard dev server |
 | `make all` | Ingest + rebuild + sync |
 
+## Telegram health export polling (portable across machines)
+
+1. On each machine, clone repo and run `make setup`.
+2. Create a local `.env` with machine-appropriate values:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID` or `TELEGRAM_CHAT_IDS`
+   - optional: `TELEGRAM_ALLOWED_USER_IDS` / `TELEGRAM_ALLOWED_USERNAMES`
+3. Install launch agent with machine-specific paths:
+
+```bash
+automation/launchd/install_telegram_poll_launchagent.sh
+```
+
+Manual one-shot run:
+
+```bash
+.venv/bin/python automation/telegram_poll.py
+```
+
 ## Tokyo trip voting backend
 
 This repo now includes a tiny shared backend for `/tokyo-trip` family voting.
